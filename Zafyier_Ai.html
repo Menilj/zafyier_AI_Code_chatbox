@@ -1,1 +1,777 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f172a">
+    <title>Code Chat Agent</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/html.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+    <style>
+        * {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .code-editor {
+            background: #0d1117;
+            color: #c9d1d9;
+            caret-color: #58a6ff;
+            line-height: 1.6;
+            -webkit-appearance: none;
+            font-size: 14px;
+        }
+        @media (min-width: 768px) {
+            .code-editor {
+                font-size: 13px;
+            }
+        }
+        .code-editor::selection {
+            background: #264f78;
+        }
+        .line-numbers {
+            color: #484f58;
+            user-select: none;
+            text-align: right;
+            padding-right: 0.75rem;
+            border-right: 1px solid #30363d;
+            font-size: 12px;
+        }
+        @media (min-width: 768px) {
+            .line-numbers {
+                font-size: 13px;
+                padding-right: 1rem;
+            }
+        }
+        .chat-bubble {
+            animation: slideIn 0.3s ease-out;
+        }
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        .typing-dot {
+            animation: typing 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        .glow-button {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+            transition: all 0.3s ease;
+        }
+        .glow-button:hover {
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8);
+            transform: translateY(-1px);
+        }
+        .glow-button:active {
+            transform: translateY(0);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        @media (min-width: 768px) {
+            ::-webkit-scrollbar {
+                width: 8px;
+                height: 8px;
+            }
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d1117;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #30363d;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #484f58;
+        }
+        
+        /* Mobile optimizations */
+        .mobile-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 50;
+            transform: translateX(100%);
+            transition: transform 0.3s ease-in-out;
+        }
+        .mobile-panel.active {
+            transform: translateX(0);
+        }
+        .mobile-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.8);
+            z-index: 40;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+        .mobile-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Touch friendly buttons */
+        .touch-btn {
+            min-height: 44px;
+            min-width: 44px;
+        }
+        
+        /* Prevent zoom on input focus for iOS */
+        @supports (-webkit-touch-callout: none) {
+            input, textarea, select {
+                font-size: 16px;
+            }
+            @media (min-width: 768px) {
+                input, textarea, select {
+                    font-size: 14px;
+                }
+            }
+        }
+        
+        /* Safe area for notched phones */
+        .safe-top {
+            padding-top: env(safe-area-inset-top);
+        }
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        
+        /* Prose styles for markdown */
+        .prose pre {
+            background: #161b22;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+        }
+        .prose code {
+            background: #161b22;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            font-size: 0.875em;
+        }
+        .prose pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        /* Landscape mode adjustments */
+        @media (max-height: 500px) and (orientation: landscape) {
+            .landscape-hide {
+                display: none;
+            }
+            .editor-landscape {
+                height: 60vh;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-950 text-gray-100 h-screen overflow-hidden flex flex-col">
+
+    <!-- Mobile Overlay -->
+    <div id="mobileOverlay" class="mobile-overlay" onclick="closeMobilePanel()"></div>
+
+    <!-- Header -->
+    <header class="bg-gray-900 border-b border-gray-800 px-4 md:px-6 py-3 md:py-4 flex items-center justify-between shrink-0 safe-top">
+        <div class="flex items-center gap-2 md:gap-3">
+            <div class="w-8 h-8 md:w-10 md:h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg">
+                <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"></path>
+                </svg>
+            </div>
+            <div class="hidden sm:block">
+                <h1 class="font-bold text-lg md:text-xl tracking-tight">Code Chat Agent</h1>
+                <p class="text-xs text-gray-400 hidden md:block">AI-Powered Code Assistant</p>
+            </div>
+            <div class="sm:hidden">
+                <h1 class="font-bold text-base">Code Chat</h1>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2 md:gap-3">
+            <!-- Mobile Chat Toggle -->
+            <button onclick="toggleMobileChat()" class="lg:hidden touch-btn p-2 bg-gray-800 rounded-lg text-gray-300 hover:text-white transition-colors flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                <span class="text-xs font-medium hidden sm:inline">Chat</span>
+            </button>
+            
+            <select id="languageSelect" class="bg-gray-800 border border-gray-700 rounded-lg px-2 md:px-3 py-2 text-xs md:text-sm focus:outline-none focus:border-blue-500 transition-colors touch-btn">
+                <option value="javascript">JS</option>
+                <option value="python">Python</option>
+                <option value="html">HTML</option>
+                <option value="css">CSS</option>
+                <option value="typescript">TS</option>
+            </select>
+            
+            <button onclick="clearCode()" class="hidden sm:block touch-btn px-3 md:px-4 py-2 text-xs md:text-sm text-gray-400 hover:text-white transition-colors">
+                Clear
+            </button>
+            
+            <button onclick="runCode()" class="glow-button bg-blue-600 hover:bg-blue-500 text-white px-3 md:px-4 py-2 rounded-lg text-xs md:text-sm font-medium flex items-center gap-1 md:gap-2 touch-btn">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span class="hidden sm:inline">Run</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex overflow-hidden relative">
+        
+        <!-- Code Editor Panel -->
+        <div class="flex-1 flex flex-col min-w-0 w-full lg:w-auto">
+            <div class="bg-gray-900 px-3 md:px-4 py-2 text-xs text-gray-400 flex items-center justify-between border-b border-gray-800">
+                <span class="font-mono text-xs md:text-sm">editor.main</span>
+                <div class="flex gap-1.5 md:gap-2">
+                    <span class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-red-500/20 border border-red-500/50"></span>
+                    <span class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-yellow-500/20 border border-yellow-500/50"></span>
+                    <span class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-green-500/20 border border-green-500/50"></span>
+                </div>
+            </div>
+            
+            <div class="flex-1 flex overflow-hidden relative editor-landscape">
+                <!-- Line Numbers -->
+                <div id="lineNumbers" class="line-numbers font-mono py-3 md:py-4 w-10 md:w-12 bg-gray-900 shrink-0 overflow-hidden text-xs md:text-sm">1</div>
+                <!-- Editor -->
+                <textarea 
+                    id="codeEditor" 
+                    class="code-editor font-mono w-full h-full p-3 md:p-4 resize-none border-none outline-none text-sm md:text-sm"
+                    placeholder="// Write your code here...&#10;function greet(name) {&#10;  return `Hello, ${name}!`;&#10;}"
+                    spellcheck="false"
+                    autocapitalize="off"
+                    autocomplete="off"
+                    autocorrect="off"
+                ></textarea>
+            </div>
+            
+            <!-- Console Output -->
+            <div class="h-32 md:h-48 bg-gray-900 border-t border-gray-800 flex flex-col shrink-0">
+                <div class="px-3 md:px-4 py-1.5 md:py-2 bg-gray-800/50 text-xs text-gray-400 font-mono flex items-center justify-between">
+                    <span class="text-xs">TERMINAL</span>
+                    <div class="flex items-center gap-2">
+                        <button onclick="clearConsole()" class="hover:text-white transition-colors p-1 touch-btn">
+                            <svg class="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div id="consoleOutput" class="flex-1 p-3 md:p-4 font-mono text-xs md:text-sm overflow-y-auto space-y-1">
+                    <div class="text-gray-500 italic text-xs md:text-sm">Ready to execute code...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Panel - Desktop -->
+        <div class="hidden lg:flex w-80 xl:w-96 bg-gray-900 flex-col border-l border-gray-800 shrink-0">
+            <div class="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4" id="desktopChatMessages">
+                <!-- Welcome Message -->
+                <div class="chat-bubble flex gap-2 md:gap-3">
+                    <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 text-xs font-bold">
+                        AI
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="bg-gray-800 rounded-2xl rounded-tl-none px-3 md:px-4 py-2.5 md:py-3 text-xs md:text-sm leading-relaxed">
+                            👋 Hi! I'm your coding assistant. I can help you debug, explain, or improve your code!
+                        </div>
+                        <div class="mt-1 text-[10px] md:text-xs text-gray-500 ml-1">Just now</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="px-3 md:px-4 py-2 border-t border-gray-800 flex gap-2 overflow-x-auto scrollbar-hide">
+                <button onclick="quickAsk('Explain this code')" class="whitespace-nowrap px-2.5 md:px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-full text-[10px] md:text-xs transition-colors touch-btn">
+                    🔍 Explain
+                </button>
+                <button onclick="quickAsk('Debug this code')" class="whitespace-nowrap px-2.5 md:px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-full text-[10px] md:text-xs transition-colors touch-btn">
+                    🐛 Debug
+                </button>
+                <button onclick="quickAsk('Optimize this code')" class="whitespace-nowrap px-2.5 md:px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-full text-[10px] md:text-xs transition-colors touch-btn">
+                    ⚡ Optimize
+                </button>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-3 md:p-4 border-t border-gray-800 bg-gray-900 safe-bottom">
+                <div class="relative">
+                    <textarea 
+                        id="desktopChatInput" 
+                        class="w-full bg-gray-800 text-white rounded-xl px-3 md:px-4 py-2.5 md:py-3 pr-10 md:pr-12 text-xs md:text-sm resize-none outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                        rows="2"
+                        placeholder="Ask about your code..."
+                        onkeydown="handleChatKeydown(event, 'desktop')"
+                    ></textarea>
+                    <button 
+                        onclick="sendMessage('desktop')"
+                        class="absolute right-2 bottom-2 p-1.5 md:p-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors text-white touch-btn"
+                    >
+                        <svg class="w-3.5 h-3.5 md:w-4 md:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                    </button>
+                </div>
+                <div class="mt-1.5 text-[10px] md:text-xs text-gray-500 text-center">
+                    Enter to send, Shift+Enter for new line
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Chat Panel -->
+        <div id="mobileChatPanel" class="mobile-panel lg:hidden bg-gray-900 flex flex-col">
+            <div class="bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between safe-top">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-xs font-bold">
+                        AI
+                    </div>
+                    <span class="font-semibold">Chat Assistant</span>
+                </div>
+                <button onclick="closeMobilePanel()" class="p-2 hover:bg-gray-800 rounded-lg transition-colors touch-btn">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-4 space-y-4" id="mobileChatMessages">
+                <!-- Welcome Message -->
+                <div class="chat-bubble flex gap-3">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 text-xs font-bold">
+                        AI
+                    </div>
+                    <div class="flex-1">
+                        <div class="bg-gray-800 rounded-2xl rounded-tl-none px-4 py-3 text-sm leading-relaxed">
+                            👋 Hi! I'm your coding assistant. I can help you debug, explain, or improve your code!
+                        </div>
+                        <div class="mt-1 text-xs text-gray-500 ml-1">Just now</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="px-4 py-2 border-t border-gray-800 flex gap-2 overflow-x-auto">
+                <button onclick="quickAsk('Explain this code', 'mobile')" class="whitespace-nowrap px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-xs transition-colors touch-btn">
+                    🔍 Explain
+                </button>
+                <button onclick="quickAsk('Debug this code', 'mobile')" class="whitespace-nowrap px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-xs transition-colors touch-btn">
+                    🐛 Debug
+                </button>
+                <button onclick="quickAsk('Optimize this code', 'mobile')" class="whitespace-nowrap px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-full text-xs transition-colors touch-btn">
+                    ⚡ Optimize
+                </button>
+            </div>
+
+            <!-- Input Area -->
+            <div class="p-4 border-t border-gray-800 bg-gray-900 safe-bottom">
+                <div class="relative">
+                    <textarea 
+                        id="mobileChatInput" 
+                        class="w-full bg-gray-800 text-white rounded-xl px-4 py-3 pr-12 text-sm resize-none outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+                        rows="2"
+                        placeholder="Ask about your code..."
+                        onkeydown="handleChatKeydown(event, 'mobile')"
+                    ></textarea>
+                    <button 
+                        onclick="sendMessage('mobile')"
+                        class="absolute right-2 bottom-2 p-2 bg-blue-600 hover:bg-blue-500 rounded-lg transition-colors text-white touch-btn"
+                    >
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Bottom Bar -->
+    <div class="lg:hidden bg-gray-900 border-t border-gray-800 px-4 py-2 flex items-center justify-around safe-bottom landscape-hide">
+        <button onclick="runCode()" class="flex flex-col items-center gap-1 p-2 text-gray-400 hover:text-blue-400 transition-colors touch-btn">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <span class="text-[10px]">Run</span>
+        </button>
+        <button onclick="clearCode()" class="flex flex-col items-center gap-1 p-2 text-gray-400 hover:text-red-400 transition-colors touch-btn">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+            </svg>
+            <span class="text-[10px]">Clear</span>
+        </button>
+        <button onclick="toggleMobileChat()" class="flex flex-col items-center gap-1 p-2 text-blue-400 hover:text-blue-300 transition-colors touch-btn">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+            </svg>
+            <span class="text-[10px]">Chat</span>
+        </button>
+    </div>
+
+    <script>
+        // Editor functionality
+        const editor = document.getElementById('codeEditor');
+        const lineNumbers = document.getElementById('lineNumbers');
+        const consoleOutput = document.getElementById('consoleOutput');
+        const languageSelect = document.getElementById('languageSelect');
+        const mobileOverlay = document.getElementById('mobileOverlay');
+        const mobileChatPanel = document.getElementById('mobileChatPanel');
+
+        // Update line numbers
+        function updateLineNumbers() {
+            const lines = editor.value.split('\n').length;
+            lineNumbers.innerHTML = Array(lines).fill(0).map((_, i) => i + 1).join('<br>');
+        }
+
+        editor.addEventListener('input', updateLineNumbers);
+        editor.addEventListener('scroll', () => {
+            lineNumbers.scrollTop = editor.scrollTop;
+        });
+
+        // Tab handling
+        editor.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+                editor.value = editor.value.substring(0, start) + '    ' + editor.value.substring(end);
+                editor.selectionStart = editor.selectionEnd = start + 4;
+            }
+        });
+
+        // Mobile panel controls
+        function toggleMobileChat() {
+            mobileChatPanel.classList.add('active');
+            mobileOverlay.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeMobilePanel() {
+            mobileChatPanel.classList.remove('active');
+            mobileOverlay.classList.remove('active');
+            document.body.style.overflow = '';
+        }
+
+        // Console capture
+        const originalLog = console.log;
+        const originalError = console.error;
+        const logs = [];
+
+        function captureConsole() {
+            console.log = (...args) => {
+                const message = args.map(arg => 
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ');
+                logs.push({ type: 'log', message });
+                appendToConsole(message, 'log');
+                originalLog.apply(console, args);
+            };
+
+            console.error = (...args) => {
+                const message = args.map(arg => String(arg)).join(' ');
+                logs.push({ type: 'error', message });
+                appendToConsole(message, 'error');
+                originalError.apply(console, args);
+            };
+        }
+
+        function restoreConsole() {
+            console.log = originalLog;
+            console.error = originalError;
+        }
+
+        function appendToConsole(message, type) {
+            const div = document.createElement('div');
+            div.className = type === 'error' ? 'text-red-400 break-all' : 'text-green-400 break-all';
+            div.innerHTML = `<span class="text-gray-500 text-[10px] md:text-xs">[${new Date().toLocaleTimeString()}]</span> ${escapeHtml(message)}`;
+            consoleOutput.appendChild(div);
+            consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function clearConsole() {
+            consoleOutput.innerHTML = '<div class="text-gray-500 italic text-xs md:text-sm">Console cleared...</div>';
+            logs.length = 0;
+        }
+
+        function clearCode() {
+            if (confirm('Clear all code?')) {
+                editor.value = '';
+                updateLineNumbers();
+            }
+        }
+
+        // Run code
+        function runCode() {
+            clearConsole();
+            const code = editor.value;
+            const lang = languageSelect.value;
+
+            if (!code.trim()) {
+                appendToConsole('No code to execute', 'error');
+                return;
+            }
+
+            try {
+                if (lang === 'javascript' || lang === 'typescript') {
+                    captureConsole();
+                    const fn = new Function(code);
+                    fn();
+                    restoreConsole();
+                } else if (lang === 'html') {
+                    const preview = window.open('', '_blank');
+                    preview.document.write(code);
+                    preview.document.close();
+                    appendToConsole('HTML opened in new tab', 'log');
+                } else if (lang === 'python') {
+                    appendToConsole('Python requires backend. Try JavaScript!', 'error');
+                } else {
+                    appendToConsole(`${lang} execution not supported`, 'error');
+                }
+            } catch (err) {
+                appendToConsole(err.message, 'error');
+                restoreConsole();
+            }
+        }
+
+        // Chat functionality
+        function handleChatKeydown(e, platform) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage(platform);
+            }
+        }
+
+        function quickAsk(prompt, platform = 'desktop') {
+            const selectedCode = getSelectedCode();
+            const fullPrompt = selectedCode 
+                ? `${prompt}:\n\`\`\`\n${selectedCode}\n\`\`\``
+                : prompt;
+            
+            const inputId = platform === 'mobile' ? 'mobileChatInput' : 'desktopChatInput';
+            document.getElementById(inputId).value = fullPrompt;
+            sendMessage(platform);
+        }
+
+        function getSelectedCode() {
+            const start = editor.selectionStart;
+            const end = editor.selectionEnd;
+            if (start !== end) {
+                return editor.value.substring(start, end);
+            }
+            return editor.value;
+        }
+
+        async function sendMessage(platform) {
+            const inputId = platform === 'mobile' ? 'mobileChatInput' : 'desktopChatInput';
+            const messagesId = platform === 'mobile' ? 'mobileChatMessages' : 'desktopChatMessages';
+            const input = document.getElementById(inputId);
+            const messagesContainer = document.getElementById(messagesId);
+            
+            const message = input.value.trim();
+            if (!message) return;
+
+            // Add user message
+            addMessage(message, 'user', messagesContainer);
+            input.value = '';
+
+            // Show typing indicator
+            const typingId = showTyping(messagesContainer);
+
+            // Simulate AI response
+            setTimeout(() => {
+                removeTyping(typingId, messagesContainer);
+                const response = generateAIResponse(message);
+                addMessage(response, 'assistant', messagesContainer);
+            }, 1000 + Math.random() * 500);
+        }
+
+        function addMessage(content, role, container) {
+            const div = document.createElement('div');
+            div.className = 'chat-bubble flex gap-2 md:gap-3';
+            
+            if (role === 'user') {
+                div.innerHTML = `
+                    <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gray-700 flex items-center justify-center shrink-0 text-[10px] md:text-xs font-bold">
+                        YOU
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="bg-blue-600 rounded-2xl rounded-tl-none px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed break-words">
+                            ${escapeHtml(content)}
+                        </div>
+                        <div class="mt-1 text-[10px] md:text-xs text-gray-500 ml-1 text-right">Just now</div>
+                    </div>
+                `;
+            } else {
+                const processedContent = marked.parse(content);
+                div.innerHTML = `
+                    <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 text-[10px] md:text-xs font-bold">
+                        AI
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="bg-gray-800 rounded-2xl rounded-tl-none px-3 md:px-4 py-2 md:py-3 text-xs md:text-sm leading-relaxed prose prose-invert max-w-none">
+                            ${processedContent}
+                        </div>
+                        <div class="mt-1 text-[10px] md:text-xs text-gray-500 ml-1">Just now</div>
+                    </div>
+                `;
+                
+                setTimeout(() => {
+                    div.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                }, 0);
+            }
+            
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function showTyping(container) {
+            const id = 'typing-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'chat-bubble flex gap-2 md:gap-3';
+            div.innerHTML = `
+                <div class="w-7 h-7 md:w-8 md:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shrink-0 text-[10px] md:text-xs font-bold">
+                    AI
+                </div>
+                <div class="flex-1">
+                    <div class="bg-gray-800 rounded-2xl rounded-tl-none px-3 md:px-4 py-2 md:py-3 flex items-center gap-1 w-fit">
+                        <div class="typing-dot w-1.5 h-1.5 md:w-2 md:h-2 bg-gray-400 rounded-full"></div>
+                        <div class="typing-dot w-1.5 h-1.5 md:w-2 md:h-2 bg-gray-400 rounded-full"></div>
+                        <div class="typing-dot w-1.5 h-1.5 md:w-2 md:h-2 bg-gray-400 rounded-full"></div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return id;
+        }
+
+        function removeTyping(id, container) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        // Simulated AI responses
+        function generateAIResponse(message) {
+            const code = getSelectedCode();
+            const lowerMsg = message.toLowerCase();
+
+            if (lowerMsg.includes('explain')) {
+                return `## Code Analysis\n\n**Language**: ${detectLanguage().toUpperCase()}\n\n### Overview:\n${analyzeCode(code)}\n\n### Functionality:\nThis code ${generateDescription()}.\n\nNeed more details on any specific part?`;
+            }
+            
+            if (lowerMsg.includes('debug') || lowerMsg.includes('fix')) {
+                const issues = findIssues(code);
+                if (issues.length > 0) {
+                    return `## Issues Found\n\n${issues.map((issue, i) => `${i + 1}. **${issue.type}**: ${issue.message}`).join('\n')}\n\n### Fix:\n\`\`\`${detectLanguage()}\n${suggestFix(code, issues)}\n\`\`\``;
+                }
+                return `## Debug Results\n\n✅ No syntax errors!\n\n**Suggestions:**\n- Add error handling\n- Validate inputs\n- Use strict equality (===)`;
+            }
+
+            if (lowerMsg.includes('optimize')) {
+                return `## Optimization\n\n**Improvements:**\n1. Use modern ES6+ syntax\n2. Reduce complexity\n3. Better variable names\n\n### Optimized:\n\`\`\`${detectLanguage()}\n${optimizeCode(code)}\n\`\`\``;
+            }
+
+            if (lowerMsg.includes('comment')) {
+                return `## Documented Code\n\n\`\`\`${detectLanguage()}\n${addComments(code)}\n\`\`\``;
+            }
+
+            return `I can help you:\n\n- 🔍 **Explain** - Code breakdown\n- 🐛 **Debug** - Find errors  \n- ⚡ **Optimize** - Improve performance\n- 📝 **Comment** - Add docs\n\nSelect code and try a quick action!`;
+        }
+
+        function detectLanguage() {
+            return languageSelect.value;
+        }
+
+        function analyzeCode(code) {
+            const lines = code.split('\n').filter(l => l.trim());
+            const functions = lines.filter(l => l.includes('function') || l.includes('=>') || l.includes('def ')).length;
+            return `- **${lines.length}** lines\n- **${functions}** function(s)\n- Clean structure`;
+        }
+
+        function generateDescription() {
+            return 'processes data and performs calculations based on input parameters';
+        }
+
+        function findIssues(code) {
+            const issues = [];
+            if (code.includes('var ')) issues.push({ type: 'Style', message: 'Use let/const instead of var' });
+            if (code.includes('==') && !code.includes('===')) issues.push({ type: 'Best Practice', message: 'Use strict equality ===' });
+            return issues;
+        }
+
+        function suggestFix(code, issues) {
+            return code.replace(/var /g, 'const ').replace(/== /g, '=== ');
+        }
+
+        function optimizeCode(code) {
+            return code.replace(/function\s*\(([^)]*)\)\s*{/g, '($1) => {');
+        }
+
+        function addComments(code) {
+            return '/**\n * Main function\n * @param {string} param - Input parameter\n */\n' + code;
+        }
+
+        // Initialize
+        updateLineNumbers();
+        
+        // Example code
+        editor.value = `// Welcome! Try the chat features
+function calculateSum(arr) {
+    return arr.reduce((a, b) => a + b, 0);
+}
+
+const numbers = [1, 2, 3, 4, 5];
+console.log("Sum:", calculateSum(numbers));`;
+        updateLineNumbers();
+
+        // Handle resize
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                if (window.innerWidth >= 1024) {
+                    closeMobilePanel();
+                }
+            }, 250);
+        });
+    </script>
+</body>
+</html>
